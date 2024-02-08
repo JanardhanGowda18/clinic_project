@@ -1,0 +1,124 @@
+{
+  "project_info": {
+    "project_number": "395943878778",
+    "project_id": "healthcare-3a512",
+    "storage_bucket": "healthcare-3a512.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:395943878778:android:ece5b8056d9d1554365bc3",
+        "android_client_info": {
+          "package_name": "com.dashboard.flutter.app.flutter_dashboard"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDaaL4IyDTEt6OuljQpFZkCpof4J7_C1Xw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:395943878778:android:9dc2a595e9dc4051365bc3",
+        "android_client_info": {
+          "package_name": "com.example.health_care"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDaaL4IyDTEt6OuljQpFZkCpof4J7_C1Xw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:395943878778:android:49657542b9a4eb93365bc3",
+        "android_client_info": {
+          "package_name": "com.example.health_care_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDaaL4IyDTEt6OuljQpFZkCpof4J7_C1Xw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:395943878778:android:bb8806afb826a488365bc3",
+        "android_client_info": {
+          "package_name": "com.example.health_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDaaL4IyDTEt6OuljQpFZkCpof4J7_C1Xw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:395943878778:android:75dc6239aecae676365bc3",
+        "android_client_info": {
+          "package_name": "com.example.real_estate_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDaaL4IyDTEt6OuljQpFZkCpof4J7_C1Xw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:395943878778:android:c1e01c008aece51f365bc3",
+        "android_client_info": {
+          "package_name": "com.example.screen_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDaaL4IyDTEt6OuljQpFZkCpof4J7_C1Xw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

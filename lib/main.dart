@@ -1,6 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:health_care/screens/doctor/TodaysAppointment.dart';
+import 'package:health_care/screens/doctor/todays/TodaysAppointment.dart';
 import 'package:path_provider/path_provider.dart';  // Import path_provider package
 import 'package:health_care/screens/doctor/DoctorDashboard.dart';
 import 'package:health_care/screens/doctor/doctor_login_screen.dart';

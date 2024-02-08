@@ -5,10 +5,11 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:twilio_flutter/twilio_flutter.dart';
-import '../../services/firebase_service.dart';
-import 'DialogUtils.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
-import 'dart:html' as html; // Import dart:html for web-specific functionalities
+import 'dart:html' as html;
+
+import '../../../services/firebase_service.dart'; // Import dart:html for web-specific functionalities
 
 // Define extension for DateTime
 extension DateTimeExtension on DateTime {
@@ -90,33 +91,40 @@ class _TodaysAppointmentState extends State<TodaysAppointment> {
         ),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: Icon(Icons.search),
-            color: Colors.white,
-            onPressed: () {
-              setState(() {
-                _showSearchBar = !_showSearchBar;
-                if (!_showSearchBar) {
-                  searchController.clear();
-                  searchResults.clear();
-                }
-              });
-            },
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8.0), // Adjust the horizontal padding as needed
+            child: IconButton(
+              icon: Icon(Icons.search),
+              color: Colors.white,
+              onPressed: () {
+                setState(() {
+                  _showSearchBar = !_showSearchBar;
+                  if (!_showSearchBar) {
+                    searchController.clear();
+                    searchResults.clear();
+                  }
+                });
+              },
+            ),
           ),
-          IconButton(
-            icon: Icon(Icons.download),
-            color: Colors.white,
-            onPressed: () async {
-              // Fetch today's appointments
-              List<Map<String, dynamic>> todaysAppointments =
-              await _fetchTodaysAppointments();
-              // Call the download method
-              _downloadPatientDataAsCSV(todaysAppointments);
-            },
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8.0), // Adjust the horizontal padding as needed
+            child: IconButton(
+              icon: Icon(Icons.download),
+              color: Colors.white,
+              onPressed: () async {
+                // Fetch today's appointments
+                List<Map<String, dynamic>> todaysAppointments =
+                await _fetchTodaysAppointments();
+                // Call the download method
+                _downloadPatientDataAsCSV(todaysAppointments);
+              },
+            ),
           ),
         ],
         backgroundColor: myBlueColor,
       ),
+
       body: Column(
         children: [
           if (_showSearchBar)
@@ -377,7 +385,7 @@ class TodaysAppointmentDataSource extends DataTableSource {
         DataCell(Text(formattedTimestamp(appointmentData))),
         DataCell(
           IconButton(
-            icon: Icon(Icons.edit),
+            icon: Icon(Icons.medical_information_outlined),
             onPressed: () {
               _showPrescriptionModal(context, appointmentData['pid'], index); // Pass index here
             },
@@ -547,48 +555,385 @@ class TodaysAppointmentDataSource extends DataTableSource {
     );
   }
 
+  void _showDetailsDialog(BuildContext context, Map<String, dynamic> appointmentData) async {
+    try {
+      // Get the patient ID from the appointment data
+      int? pid = appointmentData['pid'];
+
+      // Function to fetch prescriptions for the patient
+      Future<void> fetchPrescriptions() async {
+        // Query all prescriptions for the patient
+        final prescriptionsSnapshot = await FirebaseFirestore.instance
+            .collection('patients')
+            .doc(pid.toString())
+            .collection('prescriptions')
+            .orderBy('timestamp', descending: true) // Order by timestamp to get the latest prescription
+            .get();
+
+        // Check if there are any prescriptions
+        if (prescriptionsSnapshot.docs.isNotEmpty) {
+          // List to hold prescription card widgets
+          List<Widget> prescriptionCards = [];
+
+          // Iterate through prescription documents
+          prescriptionsSnapshot.docs.forEach((prescriptionDoc) {
+            // Get prescription data and timestamp
+            Map<String, dynamic> prescriptionData = prescriptionDoc.data();
+            Timestamp timestamp = prescriptionData['timestamp'];
+
+            // Format timestamp
+            String formattedTimestamp = DateFormat.yMd().add_Hm().format(timestamp.toDate());
+
+            // Create card widget for prescription
+            // Create card widget for prescription
+            Widget prescriptionCard = Card(
+              elevation: 3,
+              margin: EdgeInsets.symmetric(vertical: 8),
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Prescription: ${prescriptionData['prescription']}'),
+                    SizedBox(height: 8),
+                    Text('Time and Date: $formattedTimestamp'),
+                    SizedBox(height: 8),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.edit),
+                          onPressed: () {
+                            // Show dialog to edit prescription
+                            _showPrescriptionEditDialog(context, pid!, prescriptionData['prescription']);
+                          },
+                        ),
+                        IconButton(
+                          icon: Image.asset(
+                            'assets/images/whatsapp.png', // Assuming you have a WhatsApp icon asset
+                            width: 24,
+                            height: 24,
+                          ),
+                          onPressed: () {
+                            // Implement sending prescription via WhatsApp
+                            String phoneNumber = appointmentData['phoneNumber'];
+                            if (phoneNumber != null) {
+                              _sendPrescriptionViaWhatsApp(phoneNumber, prescriptionData['prescription']);
+                            } else {
+                              showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return AlertDialog(
+                                    title: Text('Phone Number Not Available'),
+                                    content: Text(
+                                      'The phone number for this appointment is not available.',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.of(context).pop();
+                                        },
+                                        child: Text('OK'),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            }
+                          },
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.delete), // Delete icon
+                          onPressed: () {
+                            // Show confirmation dialog before deleting prescription
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title: Text('Confirm Deletion'),
+                                  content: Text('Are you sure you want to delete this prescription?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop(); // Close confirmation dialog
+                                      },
+                                      child: Text('Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        // Delete prescription and close confirmation dialog
+                                        _deletePrescription(pid.toString(), prescriptionDoc.id);
+
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: Text('Delete'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+
+
+            // Add prescription card to the list
+            prescriptionCards.add(prescriptionCard);
+          });
+
+          // Show the dialog with prescription cards inside a scrollable view
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: Text('Patient Details'),
+                content: SingleChildScrollView( // Wrap in SingleChildScrollView
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ...prescriptionCards,
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: Text('Close'),
+                  ),
+                ],
+              );
+            },
+          );
+        } else {
+          // If no prescriptions found, show dialog without prescription data
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: Text('Patient Details'),
+                content: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Patient ID: ${appointmentData['pid']?.toString() ?? 'Unknown'}'),
+                    Text('Name: ${appointmentData['name'] ?? 'Unknown'}'),
+                    Text('Age: ${appointmentData['age']?.toString() ?? 'Unknown'}'),
+                    Text('Disease: ${appointmentData['disease'] ?? 'Unknown'}'),
+                    Text('Gender: ${appointmentData['gender'] ?? 'Unknown'}'),
+                    Text('Phone Number: ${appointmentData['phoneNumber'] ?? 'Unknown'}'),
+                    Text('Time and Date: ${formattedTimestamp(appointmentData)}'),
+                    SizedBox(height: 16),
+                    Text('No prescription available'),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: Text('Close'),
+                  ),
+                ],
+              );
+            },
+          );
+        }
+      }
+
+      // Show dialog with option to view prescriptions
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Patient Details'),
+            content: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Patient ID: ${appointmentData['pid']?.toString() ?? 'Unknown'}'),
+                Text('Name: ${appointmentData['name'] ?? 'Unknown'}'),
+                Text('Age: ${appointmentData['age']?.toString() ?? 'Unknown'}'),
+                Text('Disease: ${appointmentData['disease'] ?? 'Unknown'}'),
+                Text('Gender: ${appointmentData['gender'] ?? 'Unknown'}'),
+                Text('Phone Number: ${appointmentData['phoneNumber'] ?? 'Unknown'}'),
+                Text('Time and Date: ${formattedTimestamp(appointmentData)}'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text('Close'),
+              ),
+              TextButton(
+                onPressed: () {
+                  // Fetch and display prescriptions
+                  fetchPrescriptions();
+                },
+                child: Row(
+                  children: [
+                    Icon(Icons.description), // Icon instead of text
+                    SizedBox(width: 8),
+                    Text('View Prescriptions'),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      print('Error fetching prescriptions: $e');
+      // Handle error as needed
+    }
+  }
+
+// Method to send prescription via WhatsApp
+  void _sendPrescriptionViaWhatsApp(String phoneNumber, String prescription) async {
+    try {
+      String encodedPrescription = Uri.encodeFull(prescription);
+      String whatsappUrl = "https://wa.me/$phoneNumber?text=$encodedPrescription";
+
+      if (await canLaunch(whatsappUrl)) {
+        await launch(whatsappUrl);
+      } else {
+        throw 'Could not launch $whatsappUrl';
+      }
+    } catch (e) {
+      print('Error sending prescription via WhatsApp: $e');
+      // Handle error as needed
+    }
+  }
 
 
 
 
+  void _showPrescriptionEditDialog(BuildContext context, int pid, String currentPrescription) {
+    String editedPrescription = currentPrescription; // Initialize the editedPrescription with the currentPrescription
 
-
-
-  void _showDetailsDialog(BuildContext context,
-      Map<String, dynamic> appointmentData) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Patient Details'),
-          content: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                  'Patient ID: ${appointmentData['pid']?.toString() ??
-                      'Unknown'}'),
-              Text('Name: ${appointmentData['name'] ?? 'Unknown'}'),
-              Text('Age: ${appointmentData['age']?.toString() ?? 'Unknown'}'),
-              Text('Disease: ${appointmentData['disease'] ?? 'Unknown'}'),
-              Text('Gender: ${appointmentData['gender'] ?? 'Unknown'}'),
-              Text('Phone Number: ${appointmentData['phoneNumber'] ??
-                  'Unknown'}'),
-              Text('Time and Date: ${formattedTimestamp(appointmentData)}'),
-              // Add more details as needed
-            ],
+          title: Text('Edit Prescription'),
+          content: TextField(
+            maxLines: null,
+            keyboardType: TextInputType.multiline,
+            controller: TextEditingController(text: currentPrescription), // Use TextEditingController to control the text field
+            onChanged: (value) {
+              editedPrescription = value; // Update the editedPrescription when the text changes
+            },
+            decoration: InputDecoration(
+              hintText: 'Enter the updated prescription',
+              border: OutlineInputBorder(),
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: Text('Close'),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                // Call function to save the edited prescription
+                _savePrescription(pid, editedPrescription); // Pass the edited prescription
+                Navigator.of(context).pop();
+              },
+              child: Text('Save'),
             ),
           ],
         );
       },
     );
+  }
+
+
+
+
+
+
+  void _viewPrescription(BuildContext context, int? pid) async {
+    try {
+      // Query the prescriptions collection for the given patient PID
+      final prescriptionSnapshot = await FirebaseFirestore.instance
+          .collection('patients')
+          .doc(pid.toString())
+          .collection('prescriptions')
+          .orderBy('timestamp', descending: true) // Order by timestamp to get the latest prescription
+          .limit(1) // Limit to the latest prescription
+          .get();
+
+      if (prescriptionSnapshot.docs.isNotEmpty) {
+        // Get the prescription data
+        final prescriptionData = prescriptionSnapshot.docs.first.data();
+
+        // Show the prescription in a dialog
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Prescription'),
+              content: Text(prescriptionData['prescription'] ?? 'No prescription available'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('Close'),
+                ),
+              ],
+            );
+          },
+        );
+      } else {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Prescription'),
+              content: Text('No prescription available'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('Close'),
+                ),
+              ],
+            );
+          },
+        );
+      }
+    } catch (e) {
+      print('Error fetching prescription: $e');
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Error'),
+            content: Text('Failed to fetch prescription. Please try again later.'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text('Close'),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
 
   Future<void> _fetchPatientData() async {
@@ -600,24 +945,56 @@ class TodaysAppointmentDataSource extends DataTableSource {
       // Handle error as needed
     }
   }
+// Method to save prescription
   void _savePrescription(int pid, String prescription) async {
     try {
       // Get a reference to the patient's document
-      final patientRef = FirebaseFirestore.instance.collection('patients').doc(pid.toString());
+      final patientRef = FirebaseFirestore.instance.collection('patients').doc(
+          pid.toString());
 
-      // Add the prescription as a sub-collection with a custom document ID
-      final prescriptionDocRef = patientRef.collection('prescriptions').doc();
+      // Query the prescriptions collection for the given patient PID
+      final prescriptionsSnapshot = await patientRef
+          .collection('prescriptions')
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
 
-      // Set the data for the prescription document
-      await prescriptionDocRef.set({
-        'prescription': prescription,
-        'timestamp': DateTime.now(), // You may want to add a timestamp for when the prescription was saved
-      });
+      if (prescriptionsSnapshot.docs.isNotEmpty) {
+        // Update the existing prescription document
+        final existingPrescriptionDoc = prescriptionsSnapshot.docs.first;
+        await existingPrescriptionDoc.reference.update({
+          'prescription': prescription,
+          'timestamp': DateTime.now(),
+        });
+        print('Prescription updated successfully for patient with ID: $pid');
+      } else {
+        // If no existing prescription found, do nothing or handle it as needed
+        print('No existing prescription found for patient with ID: $pid');
+      }
 
-      print('Prescription saved successfully for patient with ID: $pid');
+      // Refresh UI by calling fetchAppointments
+      await fetchAppointments();
     } catch (e) {
       print('Error saving prescription: $e');
       // Handle error as needed
+    }
+  }
+
+  Future<void> _deletePrescription(String pid, String prescriptionId) async {
+    try {
+      // Delete the prescription document from Firestore
+      await FirebaseFirestore.instance
+          .collection('patients')
+          .doc(pid) // Use the provided patient ID
+          .collection('prescriptions')
+          .doc(prescriptionId)
+          .delete();
+      // Print a message indicating successful deletion (optional)
+      print('Prescription deleted successfully.');
+    } catch (error) {
+      // Handle any errors that occur during deletion
+      print('Error deleting prescription: $error');
+      // You might want to show an error message to the user here
     }
   }
 
